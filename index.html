@@ -1,0 +1,758 @@
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   Abstract Consciousness Interactive Interface
+  </title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <style>
+   /* Reset margin and padding */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Full screen canvas */
+    #backgroundCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      display: block;
+    }
+
+    /* Sidebar animations */
+    .sidebar {
+      transition: width 0.4s ease;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #312e81, #3730a3, #312e81);
+      backdrop-filter: saturate(180%) blur(20px);
+      z-index: 1000;
+    }
+
+    .sidebar.collapsed {
+      width: 4rem !important;
+    }
+
+    /* Scrollbar hidden for sidebar */
+    .sidebar::-webkit-scrollbar {
+      display: none;
+    }
+    .sidebar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Tooltip for collapsed sidebar */
+    .tooltip {
+      position: absolute;
+      left: 4.5rem;
+      background: rgba(31, 41, 55, 0.9);
+      color: #f9fafb;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      user-select: none;
+      z-index: 50;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .sidebar.collapsed .nav-item:hover .tooltip {
+      opacity: 1;
+    }
+
+    /* Sidebar icon container */
+    .icon-container {
+      width: 3rem;
+      height: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #e0e7ff;
+      transition: color 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .nav-item:hover .icon-container {
+      color: #818cf8;
+    }
+
+    /* Sidebar text */
+    .nav-text {
+      white-space: nowrap;
+      color: #e0e7ff;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: opacity 0.3s ease;
+      flex-grow: 1;
+    }
+
+    .sidebar.collapsed .nav-text {
+      opacity: 0;
+      pointer-events: none;
+      user-select: none;
+      width: 0;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Toggle button */
+    #toggleSidebarBtn {
+      cursor: pointer;
+      color: #a5b4fc;
+      font-size: 1.5rem;
+      transition: color 0.3s ease;
+      background: transparent;
+      border: none;
+      padding: 0;
+      line-height: 1;
+      z-index: 10;
+    }
+
+    #toggleSidebarBtn:hover {
+      color: #6366f1;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 16rem !important;
+        z-index: 1000;
+        background: rgba(31, 41, 55, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      #mainContent {
+        margin-left: 0 !important;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+      }
+      #mobileToggleBtn {
+        display: block;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 1100;
+        background: rgba(31, 41, 55, 0.85);
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+        color: #a5b4fc;
+        font-size: 1.5rem;
+        cursor: pointer;
+        border: none;
+      }
+      #mobileToggleBtn:hover {
+        color: #6366f1;
+      }
+    }
+
+    @media (min-width: 769px) {
+      #mobileToggleBtn {
+        display: none;
+      }
+      #mainContent {
+        margin-left: 16rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+      }
+    }
+
+    /* Fix logo and toggle button spacing */
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(129, 140, 248, 0.3);
+      position: relative;
+      z-index: 10;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      white-space: nowrap;
+      user-select: text;
+    }
+
+    .sidebar-logo img {
+      flex-shrink: 0;
+    }
+  </style>
+ </head>
+ <body class="bg-gray-900 text-gray-100 font-sans select-none relative">
+  <canvas aria-label="Animated abstract background representing consciousness, neurons, quantum and universe" id="backgroundCanvas" role="img">
+  </canvas>
+  <button aria-label="Toggle sidebar menu" id="mobileToggleBtn" title="Toggle sidebar menu">
+   <i class="fas fa-bars">
+   </i>
+  </button>
+  <aside aria-label="Primary navigation sidebar" class="sidebar fixed top-0 left-0 h-screen w-64 shadow-lg flex flex-col" id="sidebar" role="navigation">
+   <div class="sidebar-header">
+    <div class="sidebar-logo">
+     <img alt="Logo icon with letter Q in white on indigo background representing quantum" aria-hidden="true" class="w-10 h-10 rounded-md" height="40" src="https://storage.googleapis.com/a1aa/image/be4f8224-4c20-4f13-41ef-5d13d1b9edcd.jpg" width="40"/>
+     <span class="text-xl font-extrabold tracking-wide select-text">
+      QuantumMind
+     </span>
+    </div>
+    <button aria-controls="sidebar" aria-expanded="true" aria-label="Toggle sidebar" class="focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded ml-2" id="toggleSidebarBtn" type="button">
+     <i class="fas fa-bars">
+     </i>
+    </button>
+   </div>
+   <nav class="flex-1 overflow-y-auto mt-4" role="navigation">
+    <ul class="space-y-1 px-2">
+     <li class="nav-item relative group">
+      <a class="flex items-center px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors duration-300" href="#home" tabindex="0">
+       <span aria-hidden="true" class="icon-container">
+        <i class="fas fa-home">
+        </i>
+       </span>
+       <span class="nav-text ml-3">
+        Home
+       </span>
+      </a>
+      <span class="tooltip">
+       Home
+      </span>
+     </li>
+     <li class="nav-item relative group">
+      <a class="flex items-center px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors duration-300" href="#neurons" tabindex="0">
+       <span aria-hidden="true" class="icon-container">
+        <i class="fas fa-brain">
+        </i>
+       </span>
+       <span class="nav-text ml-3">
+        Neurons
+       </span>
+      </a>
+      <span class="tooltip">
+       Neurons
+      </span>
+     </li>
+     <li class="nav-item relative group">
+      <a class="flex items-center px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors duration-300" href="#quantum" tabindex="0">
+       <span aria-hidden="true" class="icon-container">
+        <i class="fas fa-atom">
+        </i>
+       </span>
+       <span class="nav-text ml-3">
+        Quantum
+       </span>
+      </a>
+      <span class="tooltip">
+       Quantum
+      </span>
+     </li>
+     <li class="nav-item relative group">
+      <a class="flex items-center px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors duration-300" href="#universe" tabindex="0">
+       <span aria-hidden="true" class="icon-container">
+        <i class="fas fa-globe-americas">
+        </i>
+       </span>
+       <span class="nav-text ml-3">
+        Universe
+       </span>
+      </a>
+      <span class="tooltip">
+       Universe
+      </span>
+     </li>
+     <li class="nav-item relative group">
+      <a class="flex items-center px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors duration-300" href="#awareness" tabindex="0">
+       <span aria-hidden="true" class="icon-container">
+        <i class="fas fa-eye">
+        </i>
+       </span>
+       <span class="nav-text ml-3">
+        Awareness
+       </span>
+      </a>
+      <span class="tooltip">
+       Awareness
+      </span>
+     </li>
+     <li class="nav-item relative group">
+      <a class="flex items-center px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors duration-300" href="#about" tabindex="0">
+       <span aria-hidden="true" class="icon-container">
+        <i class="fas fa-info-circle">
+        </i>
+       </span>
+       <span class="nav-text ml-3">
+        About
+       </span>
+      </a>
+      <span class="tooltip">
+       About
+      </span>
+     </li>
+    </ul>
+   </nav>
+  </aside>
+  <main class="p-6 min-h-screen flex flex-col justify-center items-center text-center transition-all duration-300 ease-in-out" id="mainContent" tabindex="0">
+   <h1 class="text-5xl md:text-6xl font-extrabold mb-6 tracking-wide select-text max-w-5xl">
+    Explore the Quantum Consciousness
+   </h1>
+   <p class="max-w-3xl text-lg md:text-xl text-indigo-200 mb-12 leading-relaxed select-text">
+    Dive into the micro and macro cosmos, where neurons spark awareness and
+      the universe unfolds in an abstract dance of energy and information.
+      Interact with the sidebar to navigate through realms of knowledge and
+      discovery.
+   </p>
+   <section class="w-full max-w-4xl bg-indigo-800 bg-opacity-40 rounded-xl p-8 mb-12 shadow-lg" id="home" tabindex="0">
+    <h2 class="text-3xl font-bold mb-4">
+     Home
+    </h2>
+    <p class="text-indigo-200 leading-relaxed">
+     Welcome to QuantumMind, an interactive experience blending abstract
+        animations with insightful navigation. Use the sidebar to explore
+        different facets of consciousness and the universe.
+    </p>
+   </section>
+   <section class="w-full max-w-4xl bg-indigo-800 bg-opacity-40 rounded-xl p-8 mb-12 shadow-lg" id="neurons" tabindex="0">
+    <h2 class="text-3xl font-bold mb-4">
+     Neurons
+    </h2>
+    <p class="text-indigo-200 leading-relaxed">
+     Neurons form the intricate network of the mind, firing electrical
+        impulses that create thoughts, memories, and awareness. Observe the
+        animated connections in the background as a metaphor for this
+        complexity.
+    </p>
+   </section>
+   <section class="w-full max-w-4xl bg-indigo-800 bg-opacity-40 rounded-xl p-8 mb-12 shadow-lg" id="quantum" tabindex="0">
+    <h2 class="text-3xl font-bold mb-4">
+     Quantum
+    </h2>
+    <p class="text-indigo-200 leading-relaxed">
+     At the quantum level, particles exist in superpositions and entanglement
+        weaves the fabric of reality. The background animation reflects this
+        micro-cosmos with dynamic particles and waves.
+    </p>
+   </section>
+   <section class="w-full max-w-4xl bg-indigo-800 bg-opacity-40 rounded-xl p-8 mb-12 shadow-lg" id="universe" tabindex="0">
+    <h2 class="text-3xl font-bold mb-4">
+     Universe
+    </h2>
+    <p class="text-indigo-200 leading-relaxed">
+     The macro-cosmos expands infinitely, filled with galaxies, stars, and
+        cosmic phenomena. The swirling abstract forms in the background evoke
+        the vastness and mystery of the universe.
+    </p>
+   </section>
+   <section class="w-full max-w-4xl bg-indigo-800 bg-opacity-40 rounded-xl p-8 mb-12 shadow-lg" id="awareness" tabindex="0">
+    <h2 class="text-3xl font-bold mb-4">
+     Awareness
+    </h2>
+    <p class="text-indigo-200 leading-relaxed">
+     Awareness is the emergent property of complex systems, a state of
+        conscious perception. The interactive background responds to your
+        movements, symbolizing the dynamic nature of awareness.
+    </p>
+   </section>
+   <section class="w-full max-w-4xl bg-indigo-800 bg-opacity-40 rounded-xl p-8 mb-12 shadow-lg" id="about" tabindex="0">
+    <h2 class="text-3xl font-bold mb-4">
+     About
+    </h2>
+    <p class="text-indigo-200 leading-relaxed">
+     This project is a handcrafted interactive interface combining Tailwind
+        CSS and custom canvas animations to evoke themes of consciousness,
+        quantum physics, and the universe. It is fully responsive and optimized
+        for all devices.
+    </p>
+   </section>
+  </main>
+  <script>
+   (() => {
+      const canvas = document.getElementById("backgroundCanvas");
+      const ctx = canvas.getContext("2d");
+      let width, height, dpr;
+
+      // Particle system parameters
+      const PARTICLE_COUNT = 120;
+      const MAX_CONNECTION_DISTANCE = 140;
+      const PARTICLE_RADIUS = 2.5;
+      const NEURON_RADIUS = 4;
+      const WAVE_AMPLITUDE = 20;
+      const WAVE_FREQUENCY = 0.0025;
+
+      // Store particles
+      let particles = [];
+
+      // Mouse interaction
+      const mouse = {
+        x: null,
+        y: null,
+        radius: 150,
+        isActive: false,
+      };
+
+      // Resize canvas to full screen with device pixel ratio
+      function resize() {
+        dpr = window.devicePixelRatio || 1;
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+      }
+
+      // Particle class representing neurons, quantum particles, or stars
+      class Particle {
+        constructor(x, y, vx, vy, radius, type) {
+          this.x = x;
+          this.y = y;
+          this.vx = vx;
+          this.vy = vy;
+          this.radius = radius;
+          this.type = type; // "neuron", "quantum", "star"
+          this.baseRadius = radius;
+          this.phase = Math.random() * 2 * Math.PI;
+          this.color = this.getColorByType(type);
+          this.connections = [];
+        }
+
+        getColorByType(type) {
+          switch (type) {
+            case "neuron":
+              return "rgba(147,197,253,0.9)"; // light blue
+            case "quantum":
+              return "rgba(192,132,252,0.85)"; // purple
+            case "star":
+              return "rgba(252,211,77,0.9)"; // yellow
+            default:
+              return "rgba(255,255,255,0.8)";
+          }
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+
+          // Bounce off edges
+          if (this.x < this.radius) {
+            this.x = this.radius;
+            this.vx = -this.vx;
+          } else if (this.x > width - this.radius) {
+            this.x = width - this.radius;
+            this.vx = -this.vx;
+          }
+          if (this.y < this.radius) {
+            this.y = this.radius;
+            this.vy = -this.vy;
+          } else if (this.y > height - this.radius) {
+            this.y = height - this.radius;
+            this.vy = -this.vy;
+          }
+
+          // Animate radius pulsation for neurons and quantum particles
+          if (this.type === "neuron" || this.type === "quantum") {
+            this.phase += 0.05;
+            this.radius =
+              this.baseRadius + Math.sin(this.phase) * (this.baseRadius * 0.4);
+          }
+
+          // Interaction with mouse: repel particles gently
+          if (mouse.isActive && mouse.x !== null && mouse.y !== null) {
+            const dx = this.x - mouse.x;
+            const dy = this.y - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < mouse.radius && dist > 0) {
+              const force = (mouse.radius - dist) / mouse.radius;
+              const angle = Math.atan2(dy, dx);
+              this.vx += force * Math.cos(angle) * 0.15;
+              this.vy += force * Math.sin(angle) * 0.15;
+            }
+          }
+
+          // Slow down velocity gradually (friction)
+          this.vx *= 0.95;
+          this.vy *= 0.95;
+        }
+
+        draw() {
+          // Glow effect
+          const gradient = ctx.createRadialGradient(
+            this.x,
+            this.y,
+            0,
+            this.x,
+            this.y,
+            this.radius * 3
+          );
+          gradient.addColorStop(0, this.color);
+          gradient.addColorStop(1, "rgba(0,0,0,0)");
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius * 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Core circle
+          ctx.fillStyle = this.color;
+          ctx.shadowColor = this.color;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      // Initialize particles with mixed types
+      function initParticles() {
+        particles = [];
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          const x = Math.random() * (width - 60) + 30;
+          const y = Math.random() * (height - 60) + 30;
+          const angle = Math.random() * 2 * Math.PI;
+          const speed = 0.3 + Math.random() * 0.4;
+          const vx = Math.cos(angle) * speed;
+          const vy = Math.sin(angle) * speed;
+
+          // Assign type based on index for variety
+          let type = "star";
+          if (i % 5 === 0) type = "neuron";
+          else if (i % 3 === 0) type = "quantum";
+
+          const radius = type === "neuron" ? NEURON_RADIUS : PARTICLE_RADIUS;
+
+          particles.push(new Particle(x, y, vx, vy, radius, type));
+        }
+      }
+
+      // Draw connections between close particles
+      function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+          const p1 = particles[i];
+          for (let j = i + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < MAX_CONNECTION_DISTANCE) {
+              const alpha = 1 - dist / MAX_CONNECTION_DISTANCE;
+              ctx.strokeStyle = `rgba(147,197,253,${alpha * 0.3})`;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // Draw abstract wave lines representing macro cosmos
+      function drawWaveLines(time) {
+        const waveCount = 5;
+        const spacing = height / (waveCount + 1);
+        ctx.lineWidth = 1.5;
+
+        for (let i = 1; i <= waveCount; i++) {
+          const yBase = spacing * i;
+          ctx.strokeStyle = `rgba(192,132,252,0.15)`;
+          ctx.beginPath();
+          for (let x = 0; x <= width; x += 10) {
+            const y =
+              yBase +
+              Math.sin(x * WAVE_FREQUENCY + time * 0.002 + i) * WAVE_AMPLITUDE;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Draw neuron-like branching structures near mouse
+      function drawNeuronBranches() {
+        if (!mouse.isActive || mouse.x === null || mouse.y === null) return;
+
+        const branchCount = 6;
+        const maxLength = 80;
+        ctx.strokeStyle = "rgba(147,197,253,0.4)";
+        ctx.lineWidth = 1.2;
+        ctx.shadowColor = "rgba(147,197,253,0.7)";
+        ctx.shadowBlur = 6;
+
+        for (let i = 0; i < branchCount; i++) {
+          const angle = (Math.PI * 2 * i) / branchCount + performance.now() * 0.001;
+          const length = maxLength * (0.5 + 0.5 * Math.sin(performance.now() * 0.002 + i));
+          ctx.beginPath();
+          ctx.moveTo(mouse.x, mouse.y);
+          ctx.lineTo(
+            mouse.x + Math.cos(angle) * length,
+            mouse.y + Math.sin(angle) * length
+          );
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+      }
+
+      // Main animation loop
+      function animate(time = 0) {
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw wave lines (macro cosmos)
+        drawWaveLines(time);
+
+        // Update and draw particles
+        particles.forEach((p) => {
+          p.update();
+          p.draw();
+        });
+
+        // Draw connections (neurons and quantum entanglement)
+        drawConnections();
+
+        // Draw neuron branches near mouse pointer
+        drawNeuronBranches();
+
+        requestAnimationFrame(animate);
+      }
+
+      // Mouse event handlers
+      function onMouseMove(e) {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.isActive = true;
+      }
+
+      function onMouseLeave() {
+        mouse.isActive = false;
+        mouse.x = null;
+        mouse.y = null;
+      }
+
+      // Touch event handlers for mobile
+      function onTouchMove(e) {
+        if (e.touches.length > 0) {
+          mouse.x = e.touches[0].clientX;
+          mouse.y = e.touches[0].clientY;
+          mouse.isActive = true;
+        }
+      }
+
+      function onTouchEnd() {
+        mouse.isActive = false;
+        mouse.x = null;
+        mouse.y = null;
+      }
+
+      // Sidebar toggle logic
+      const sidebar = document.getElementById("sidebar");
+      const toggleBtn = document.getElementById("toggleSidebarBtn");
+      const mobileToggleBtn = document.getElementById("mobileToggleBtn");
+      const mainContent = document.getElementById("mainContent");
+
+      function toggleSidebar() {
+        const isCollapsed = sidebar.classList.toggle("collapsed");
+        toggleBtn.setAttribute("aria-expanded", !isCollapsed);
+        if (window.innerWidth > 768) {
+          if (isCollapsed) {
+            mainContent.style.marginLeft = "4rem";
+          } else {
+            mainContent.style.marginLeft = "16rem";
+          }
+        }
+      }
+
+      function openMobileSidebar() {
+        sidebar.classList.add("open");
+        mobileToggleBtn.setAttribute("aria-expanded", "true");
+      }
+
+      function closeMobileSidebar() {
+        sidebar.classList.remove("open");
+        mobileToggleBtn.setAttribute("aria-expanded", "false");
+      }
+
+      function toggleMobileSidebar() {
+        if (sidebar.classList.contains("open")) {
+          closeMobileSidebar();
+        } else {
+          openMobileSidebar();
+        }
+      }
+
+      toggleBtn.addEventListener("click", toggleSidebar);
+      mobileToggleBtn.addEventListener("click", toggleMobileSidebar);
+
+      // Close mobile sidebar when clicking outside
+      document.addEventListener("click", (e) => {
+        if (
+          window.innerWidth <= 768 &&
+          sidebar.classList.contains("open") &&
+          !sidebar.contains(e.target) &&
+          e.target !== mobileToggleBtn
+        ) {
+          closeMobileSidebar();
+        }
+      });
+
+      // Initialize everything
+      function init() {
+        resize();
+        initParticles();
+        animate();
+
+        window.addEventListener("resize", () => {
+          resize();
+          initParticles();
+          if (window.innerWidth > 768) {
+            sidebar.classList.remove("open");
+            mainContent.style.marginLeft = sidebar.classList.contains("collapsed")
+              ? "4rem"
+              : "16rem";
+          } else {
+            mainContent.style.marginLeft = "0";
+          }
+        });
+
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseleave", onMouseLeave);
+        window.addEventListener("touchmove", onTouchMove, { passive: true });
+        window.addEventListener("touchend", onTouchEnd);
+
+        // Set initial margin-left for main content
+        if (window.innerWidth > 768) {
+          mainContent.style.marginLeft = "16rem";
+        } else {
+          mainContent.style.marginLeft = "0";
+        }
+      }
+
+      init();
+    })();
+  </script>
+ </body>
+</html>
